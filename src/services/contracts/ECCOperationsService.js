@@ -3,6 +3,7 @@ import { getContractAddress } from '../../constants/contractAddresses';
 import ECCOperationsABI from '../../abis/ECCOperations.json';
 import EccService from '../cryptography/EccService';
 
+
 /**
  * Service for interacting with the ECCOperations smart contract
  */
@@ -19,9 +20,14 @@ class ECCOperationsService {
     
     this.signer = signer;
     this.contractAddress = getContractAddress('ECCOperations', chainId);
+    
+    // Extract the ABI array from the imported object
+    const abi = ECCOperationsABI.abi;
+    
+    // Create the contract with the ABI array
     this.contract = new ethers.Contract(
       this.contractAddress,
-      ECCOperationsABI,
+      abi,
       signer
     );
   }
@@ -52,7 +58,7 @@ class ECCOperationsService {
    */
   async getPublicKeyHex(address) {
     const publicKeyBytes = await this.getPublicKey(address);
-    const publicKeyHex = ethers.utils.hexlify(publicKeyBytes);
+    const publicKeyHex = ethers.hexlify(publicKeyBytes);
     
     // Remove '0x' prefix and the '04' byte if present (for uncompressed keys)
     const hexString = publicKeyHex.substring(2);
@@ -71,7 +77,7 @@ class ECCOperationsService {
       : '04' + publicKeyHex;
     
     // Convert to bytes format for contract
-    const publicKeyBytes = ethers.utils.arrayify('0x' + formattedPublicKey);
+    const publicKeyBytes = ethers.getBytes('0x' + formattedPublicKey);
     
     // Send transaction
     const tx = await this.contract.registerPublicKey(publicKeyBytes);
@@ -96,7 +102,7 @@ class ECCOperationsService {
       ? publicKeyHex 
       : '04' + publicKeyHex;
     
-    const publicKeyBytes = ethers.utils.arrayify('0x' + formattedPublicKey);
+    const publicKeyBytes = ethers.getBytes('0x' + formattedPublicKey);
     
     const tx = await this.contract.registerPublicKeyFor(
       userAddress,
@@ -134,7 +140,7 @@ class ECCOperationsService {
       ? ephemeralKeyHex 
       : '04' + ephemeralKeyHex;
     
-    const ephemeralKeyBytes = ethers.utils.arrayify('0x' + formattedEphemeralKey);
+    const ephemeralKeyBytes = ethers.getBytes('0x' + formattedEphemeralKey);
     
     const tx = await this.contract.computeSharedKey(recipientAddress, ephemeralKeyBytes);
     const receipt = await tx.wait();
@@ -170,8 +176,8 @@ class ECCOperationsService {
     const nonce = await this.getNonce(wallet.address);
     
     // Create the hash of the function data
-    const functionDataHash = ethers.utils.keccak256(
-      ethers.utils.defaultAbiCoder.encode(
+    const functionDataHash = ethers.keccak256(
+        ethers.AbiCoder.defaultAbiCoder().encode(
         ['bytes32', 'address', 'bytes', 'uint256'],
         [
           ethers.utils.id('registerPublicKeyFor(address user,bytes publicKey,uint256 deadline)'),
@@ -183,15 +189,15 @@ class ECCOperationsService {
     );
     
     // Create the digest to sign
-    const digest = ethers.utils.keccak256(
+    const digest = ethers.keccak256(
       ethers.utils.solidityPack(
         ['bytes1', 'bytes1', 'bytes32', 'bytes32'],
         [
           '0x19',
           '0x01',
           domainSeparator,
-          ethers.utils.keccak256(
-            ethers.utils.defaultAbiCoder.encode(
+          ethers.keccak256(
+            ethers.AbiCoder.defaultAbiCoder().encode(
               ['bytes32', 'uint256'],
               [functionDataHash, nonce]
             )

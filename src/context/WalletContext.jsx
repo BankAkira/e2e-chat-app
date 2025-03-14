@@ -28,12 +28,12 @@ export const WalletProvider = ({ children }) => {
         // Request account access
         await window.ethereum.request({ method: 'eth_requestAccounts' });
         
-        // Create ethers provider
-        const ethersProvider = new ethers.providers.Web3Provider(window.ethereum);
+        // Create ethers provider - Updated for ethers v6
+        const ethersProvider = new ethers.BrowserProvider(window.ethereum);
         setProvider(ethersProvider);
         
-        // Get signer
-        const ethersSigner = ethersProvider.getSigner();
+        // Get signer - Updated for ethers v6
+        const ethersSigner = await ethersProvider.getSigner();
         setSigner(ethersSigner);
         
         // Get connected account
@@ -79,15 +79,18 @@ export const WalletProvider = ({ children }) => {
         }
       };
 
-      const handleChainChanged = (chainIdHex) => {
+      const handleChainChanged = async (chainIdHex) => {
         // Convert hex chainId to decimal
         const newChainId = parseInt(chainIdHex, 16);
         setChainId(newChainId);
         
         // Refresh provider and signer on chain change
-        const ethersProvider = new ethers.providers.Web3Provider(window.ethereum);
-        setProvider(ethersProvider);
-        setSigner(ethersProvider.getSigner());
+        if (window.ethereum) {
+          const ethersProvider = new ethers.BrowserProvider(window.ethereum);
+          setProvider(ethersProvider);
+          const ethersSigner = await ethersProvider.getSigner();
+          setSigner(ethersSigner);
+        }
       };
 
       // Subscribe to events

@@ -16,13 +16,13 @@ class ShamirSecretSharingService {
       throw new Error("Signer is required");
     }
     
-    this.signer = signer;
-    this.contractAddress = getContractAddress('ShamirSecretSharing', chainId);
+    const abi = ShamirSecretSharingABI.abi;
     this.contract = new ethers.Contract(
-      this.contractAddress,
-      ShamirSecretSharingABI,
-      signer
+    this.contractAddress,
+    abi,
+    signer
     );
+
   }
   
   /**
@@ -33,12 +33,12 @@ class ShamirSecretSharingService {
   async commitToCoefficients(coefficients) {
     // Convert to proper format
     const coeffsAsNumbers = coefficients.map(c => 
-      ethers.BigNumber.from(c)
+        ethers.getBigInt(c)
     );
     
     // Hash coefficients
-    const coefficientsHash = ethers.utils.keccak256(
-      ethers.utils.defaultAbiCoder.encode(['uint256[]'], [coeffsAsNumbers])
+    const coefficientsHash = ethers.keccak256(
+        ethers.AbiCoder.defaultAbiCoder().encode(['uint256[]'], [coeffsAsNumbers])
     );
     
     // Send transaction
@@ -67,7 +67,7 @@ class ShamirSecretSharingService {
     commitmentId
   ) {
     // Convert secret to bytes
-    const secretBytes = ethers.utils.arrayify('0x' + secretHex);
+    const secretBytes = ethers.getBytes('0x' + secretHex);
     
     // Send transaction
     const tx = await this.contract.splitSecretWithClientCoefficients(
@@ -105,7 +105,7 @@ class ShamirSecretSharingService {
    */
   async splitSecretWithHybridRandomness(secretHex, numShares, threshold) {
     // Convert secret to bytes
-    const secretBytes = ethers.utils.arrayify('0x' + secretHex);
+    const secretBytes = ethers.getBytes('0x' + secretHex);
     
     // Generate client seed for additional randomness
     const clientSeed = ethers.utils.randomBytes(32);
@@ -142,7 +142,7 @@ class ShamirSecretSharingService {
     const result = await this.contract.callStatic.reconstructSecret(shareIndices);
     
     // Convert result to hex string
-    return ethers.utils.hexlify(result).substring(2); // Remove '0x' prefix
+    return ethers.hexlify(result).substring(2); // Remove '0x' prefix
   }
   
   /**
@@ -193,7 +193,7 @@ class ShamirSecretSharingService {
    */
   async evaluatePolynomial(coefficients, x) {
     const coeffsAsNumbers = coefficients.map(c => 
-      ethers.BigNumber.from(c)
+        ethers.getBigInt(c)
     );
     
     const result = await this.contract.callStatic.evaluatePolynomial(coeffsAsNumbers, x);
@@ -208,8 +208,8 @@ class ShamirSecretSharingService {
    */
   async modInverse(a, m) {
     const result = await this.contract.callStatic.modInverse(
-      ethers.BigNumber.from(a),
-      ethers.BigNumber.from(m)
+        ethers.getBigInt(a),
+        ethers.getBigInt(m)
     );
     return result.toString();
   }
@@ -220,7 +220,7 @@ class ShamirSecretSharingService {
    * @returns {Promise<string>} Converted value as string
    */
   async bytesToUint(dataHex) {
-    const dataBytes = ethers.utils.arrayify('0x' + dataHex);
+    const dataBytes = ethers.getBytes('0x' + dataHex);
     const result = await this.contract.callStatic.bytesToUint(dataBytes);
     return result.toString();
   }
@@ -232,9 +232,9 @@ class ShamirSecretSharingService {
    */
   async uintToBytes(value) {
     const result = await this.contract.callStatic.uintToBytes(
-      ethers.BigNumber.from(value)
+        ethers.getBigInt(value)
     );
-    return ethers.utils.hexlify(result).substring(2); // Remove '0x' prefix
+    return ethers.hexlify(result).substring(2); // Remove '0x' prefix
   }
 }
 

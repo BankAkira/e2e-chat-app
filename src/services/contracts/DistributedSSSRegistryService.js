@@ -16,12 +16,11 @@ class DistributedSSSRegistryService {
       throw new Error("Signer is required");
     }
     
-    this.signer = signer;
-    this.contractAddress = getContractAddress('DistributedSSSRegistry', chainId);
+    const abi = DistributedSSSRegistryABI.abi;
     this.contract = new ethers.Contract(
-      this.contractAddress,
-      DistributedSSSRegistryABI,
-      signer
+        this.contractAddress,
+        abi,
+        signer
     );
   }
   
@@ -35,12 +34,12 @@ class DistributedSSSRegistryService {
   async storeShares(encryptedSharesHex, threshold, options = {}) {
     // Convert to bytes format for contract
     const encryptedSharesBytes = encryptedSharesHex.map(share => 
-      ethers.utils.arrayify(share)
+        ethers.getBytes(share)
     );
     
     // Default options
     const txOptions = {
-      value: ethers.utils.parseEther("0.01"), // Default fee
+      value: ethers.parseEther("0"), // Default fee
       ...options
     };
     
@@ -156,7 +155,7 @@ class DistributedSSSRegistryService {
     for (let index of indices) {
       try {
         const shareData = await this.contract.getShare(userAddress, index);
-        shares.push(ethers.utils.hexlify(shareData));
+        shares.push(ethers.hexlify(shareData));
       } catch (error) {
         console.error(`Error retrieving share at index ${index}:`, error);
       }
@@ -185,12 +184,12 @@ class DistributedSSSRegistryService {
   ) {
     // Convert to bytes format for contract
     const encryptedSharesBytes = encryptedSharesHex.map(share => 
-      ethers.utils.arrayify(share)
+        ethers.getBytes(share)
     );
     
     // Default options
     const txOptions = {
-      value: ethers.utils.parseEther("0.01"), // Default fee
+      value: ethers.parseEther("0.0"), // Default fee
       ...options
     };
     

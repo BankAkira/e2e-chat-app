@@ -13,8 +13,10 @@ export default defineConfig({
   ],
   resolve: {
     alias: {
-      // If you have path alias requirements
       '@': '/src',
     },
+  },
+  css: {
+    postcss: './postcss.config.js',
   },
 })
