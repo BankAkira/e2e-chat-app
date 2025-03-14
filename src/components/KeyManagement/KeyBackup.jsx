@@ -17,17 +17,26 @@ const KeyBackup = () => {
   const [error, setError] = useState('');
   
   // Backup configuration
-  const NUM_SHARES = 5;
-  const THRESHOLD = 3;
+  const NUM_SHARES = 48;
+  const THRESHOLD = 16;
   
   // Initialize services when needed
   const initServices = () => {
-    if (!signer) return { shamirService: null, registryService: null };
+    if (!signer || !chainId) {
+      console.error('Signer or chainId is missing');
+      return { shamirService: null, registryService: null };
+    }
     
-    const shamirService = new ShamirSecretSharingService(signer, chainId);
-    const registryService = new DistributedSSSRegistryService(signer, chainId);
-    
-    return { shamirService, registryService };
+    try {
+      const shamirService = new ShamirSecretSharingService(signer, chainId);
+      const registryService = new DistributedSSSRegistryService(signer, chainId);
+      
+      return { shamirService, registryService };
+    } catch (initError) {
+      console.error('Error initializing services:', initError);
+      setError(`Failed to initialize services: ${initError.message}`);
+      return { shamirService: null, registryService: null };
+    }
   };
   
   // Check if backup already exists
@@ -37,7 +46,7 @@ const KeyBackup = () => {
         try {
           const { registryService } = initServices();
           const address = await signer.getAddress();
-          const hasShares = await registryService.hasShares(address);
+        //   const hasShares = await registryService.hasShares(address);
           setIsBackedUp(hasShares);
         } catch (error) {
           console.error("Error checking backup status:", error);
@@ -49,8 +58,19 @@ const KeyBackup = () => {
   }, [isKeyRegistered, signer, setIsBackedUp]);
   
   const handleBackupKey = async () => {
-    if (!keyPair || !isKeyRegistered || !signer) {
+    // Extensive input validation
+    if (!keyPair) {
+      setError("No key pair available for backup");
+      return;
+    }
+    
+    if (!isKeyRegistered) {
       setError("Key must be registered before backup");
+      return;
+    }
+    
+    if (!signer) {
+      setError("Wallet not connected");
       return;
     }
     
@@ -59,13 +79,25 @@ const KeyBackup = () => {
     setError('');
     
     try {
+      // Initialize services with error handling
       const { shamirService, registryService } = initServices();
+      
+      // Validate services are initialized
+      if (!shamirService || !registryService) {
+        throw new Error('Failed to initialize backup services');
+      }
       
       // Step 1: Generate Shamir shares for the private key
       setBackupProgress('Generating Shamir secret shares...');
       
       // Convert private key to bytes format
       const privateKeyBytes = keyPair.privateKey;
+      
+      console.log('Attempting to split secret with services:', {
+        shamirService: !!shamirService,
+        registryService: !!registryService,
+        privateKeyBytes: privateKeyBytes.substring(0, 10) + '...'
+      });
       
       // Split the secret using the Shamir contract
       const shareIndices = await shamirService.splitSecretWithHybridRandomness(
@@ -107,14 +139,22 @@ const KeyBackup = () => {
       await registryService.storeShares(
         encryptedShares,
         THRESHOLD,
-        { value: ethers.utils.parseEther("0.01") } // Service fee
+        { value: ethers.parseEther("0.01") } // Service fee
       );
       
       setBackupProgress('Backup completed successfully!');
       setIsBackedUp(true);
     } catch (error) {
-      console.error("Error during backup process:", error);
-      setError(`Backup failed: ${error.message}`);
+      console.error("Detailed error during backup process:", error);
+      
+      // Provide more context based on error type
+      if (error.code === 'INSUFFICIENT_FUNDS') {
+        setError('Not enough funds to pay for share storage');
+      } else if (error.message.includes('contract method')) {
+        setError('Contract method not found. Check contract deployment.');
+      } else {
+        setError(`Backup failed: ${error.message}`);
+      }
     } finally {
       setIsBackingUp(false);
     }
@@ -148,6 +188,7 @@ const KeyBackup = () => {
   }
   
   return (
+    <div className="bg-gray-100 p-4 rounded-lg mb-6">
     <div className="bg-gray-100 p-4 rounded-lg mb-6">
       <h2 className="text-lg font-semibold mb-2">Private Key Backup</h2>
       
@@ -193,9 +234,14 @@ const KeyBackup = () => {
       
       {error && (
         <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded">
-          <p className="text-sm text-red-500">{error}</p>
-        </div>
+        <p className="text-sm text-red-500">{error}</p>
+        <details className="text-xs text-gray-600 mt-1">
+          <summary>More Details</summary>
+          <pre>{JSON.stringify(error, null, 2)}</pre>
+        </details>
+      </div>
       )}
+    </div>
     </div>
   );
 };

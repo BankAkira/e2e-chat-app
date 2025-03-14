@@ -38,7 +38,39 @@ class ECCOperationsService {
    * @returns {Promise<boolean>} True if address has a registered key
    */
   async hasPublicKey(address) {
-    return await this.contract.hasPublicKey(address);
+    try {
+        // First, check if the contract exists and is callable
+        if (!this.contract) {
+          console.error('ECCOperations contract not initialized');
+          return false;
+        }
+  
+        // Check if the address is valid
+        if (!ethers.isAddress(address)) {
+          console.error('Invalid Ethereum address');
+          return false;
+        }
+  
+        // Attempt to call the contract method
+        const result = await this.contract.hasPublicKey(address);
+        
+        // Log the raw result for debugging
+        console.log(`hasPublicKey result for ${address}:`, result);
+  
+        // Convert to boolean (in case of different return types)
+        return !!result;
+      } catch (error) {
+        console.error('Error checking public key:', error);
+        
+        // Provide more detailed error logging
+        if (error.code === 'BAD_DATA') {
+          console.error('Potential contract address or ABI mismatch');
+          console.error('Contract Address:', this.contractAddress);
+        }
+        
+        // Return false to prevent breaking the application flow
+        return false;
+      }
   }
   
   /**

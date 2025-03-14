@@ -16,13 +16,47 @@ class ShamirSecretSharingService {
       throw new Error("Signer is required");
     }
     
-    const abi = ShamirSecretSharingABI.abi;
-    this.contract = new ethers.Contract(
-    this.contractAddress,
-    abi,
-    signer
-    );
-
+    try {
+      // Ensure chainId is a number and provide a default
+      chainId = Number(chainId || 1);
+      
+      // Correctly set the contract address using getContractAddress
+      this.contractAddress = getContractAddress('ShamirSecretSharing', chainId);
+      
+      // Validate contract address
+      if (!this.contractAddress || !ethers.isAddress(this.contractAddress)) {
+        throw new Error(`Invalid contract address for network ${chainId}`);
+      }
+      
+      const abi = ShamirSecretSharingABI.abi;
+      
+      // Validate ABI
+      if (!abi || abi.length === 0) {
+        throw new Error('Invalid or empty ABI');
+      }
+      
+      // Create contract instance
+      this.contract = new ethers.Contract(
+        this.contractAddress,
+        abi,
+        signer
+      );
+      
+      // Validate contract instance
+      if (!this.contract) {
+        throw new Error('Failed to create contract instance');
+      }
+      
+      // Log contract details for debugging
+      console.log('Shamir Secret Sharing Contract Details:', {
+        address: this.contractAddress,
+        network: chainId,
+        methodCount: abi.filter(item => item.type === 'function').length
+      });
+    } catch (error) {
+      console.error('Error initializing ShamirSecretSharingService:', error);
+      throw error;
+    }
   }
   
   /**
@@ -50,6 +84,74 @@ class ShamirSecretSharingService {
     return event.args.commitmentId;
   }
   
+  /**
+   * Split a secret into shares using hybrid randomness
+   * @param {string} secretHex - Secret to split (hex string without 0x prefix)
+   * @param {number} numShares - Number of shares to generate
+   * @param {number} threshold - Minimum shares needed for reconstruction
+   * @returns {Promise<Array<number>>} Array of share indices (x coordinates)
+   */
+  async splitSecretWithHybridRandomness(secretHex, numShares, threshold) {
+    try {
+      // Validate inputs
+      if (!this.contract) {
+        throw new Error('Contract not initialized');
+      }
+      
+      if (!secretHex) {
+        throw new Error('Secret is required');
+      }
+      
+      if (numShares < 2 || threshold < 1 || threshold > numShares) {
+        throw new Error('Invalid shares or threshold configuration');
+      }
+      
+      // Convert secret to bytes
+      const secretBytes = ethers.getBytes('0x' + secretHex);
+      
+      // Generate client seed for additional randomness
+      const clientSeed = ethers.randomBytes(32);
+      
+      // Validate contract method exists
+      if (typeof this.contract.splitSecretWithHybridRandomness !== 'function') {
+        throw new Error('splitSecretWithHybridRandomness method not found in contract');
+      }
+      
+      // Simulate the call first to catch any potential errors
+      const staticResult = await this.contract.callStatic.splitSecretWithHybridRandomness(
+        secretBytes,
+        numShares,
+        threshold,
+        clientSeed
+      );
+      
+      // Send actual transaction
+      const tx = await this.contract.splitSecretWithHybridRandomness(
+        secretBytes,
+        numShares,
+        threshold,
+        clientSeed
+      );
+      
+      const receipt = await tx.wait();
+      
+      // Convert to numbers
+      return staticResult.map(x => x.toNumber());
+    } catch (error) {
+      console.error('Error in splitSecretWithHybridRandomness:', error);
+      
+      // Provide more context about the error
+      if (error.code === 'CALL_EXCEPTION') {
+        console.error('Contract call failed. Possible reasons:');
+        console.error('- Incorrect contract address');
+        console.error('- Contract not deployed on current network');
+        console.error('- Method not present in contract');
+      }
+      
+      throw error;
+    }
+  }
+
   /**
    * Split a secret into shares using client-provided coefficients
    * @param {string} secretHex - Secret to split (hex string without 0x prefix)
@@ -108,7 +210,7 @@ class ShamirSecretSharingService {
     const secretBytes = ethers.getBytes('0x' + secretHex);
     
     // Generate client seed for additional randomness
-    const clientSeed = ethers.utils.randomBytes(32);
+    const clientSeed = ethers.randomBytes(32);
     
     // Send transaction
     const tx = await this.contract.splitSecretWithHybridRandomness(

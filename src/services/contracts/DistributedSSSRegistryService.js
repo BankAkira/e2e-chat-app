@@ -15,6 +15,7 @@ class DistributedSSSRegistryService {
     if (!signer) {
       throw new Error("Signer is required");
     }
+    this.contractAddress = getContractAddress('DistributedSSSRegistry', chainId);
     
     const abi = DistributedSSSRegistryABI.abi;
     this.contract = new ethers.Contract(

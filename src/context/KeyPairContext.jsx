@@ -17,7 +17,7 @@ export const useKeyPair = () => {
 
 // Provider component
 export const KeyPairProvider = ({ children }) => {
-  const { signer, account, isConnected } = useWallet();
+  const { signer, account, isConnected, chainId } = useWallet();
   
   const [keyPair, setKeyPair] = useState(null);
   const [isKeyRegistered, setIsKeyRegistered] = useState(false);
@@ -30,7 +30,7 @@ export const KeyPairProvider = ({ children }) => {
     const initializeServices = async () => {
       if (isConnected && signer) {
         // Initialize ECC contract service
-        const eccService = new ECCOperationsService(signer);
+        const eccService = new ECCOperationsService(signer, chainId);
         setEccContract(eccService);
         
         // Check if user already has a registered key
