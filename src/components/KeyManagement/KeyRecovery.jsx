@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useKeyPair } from '../../context/KeyPairContext';
 import { useWallet } from '../../context/WalletContext';
-import ShamirSecretSharingService from '../../services/contracts/ShamirSecretSharingService';
-import DistributedSSSRegistryService from '../../services/contracts/DistributedSSSRegistryService';
+import ProductionShamirService from '../../services/contracts/ProductionShamirService';
+import SecureShareRegistryService from '../../services/contracts/SecureShareRegistryService';
 import EccService from '../../services/cryptography/EccService';
 
 const KeyRecovery = () => {
@@ -20,8 +20,8 @@ const KeyRecovery = () => {
   const initServices = () => {
     if (!signer) return { shamirService: null, registryService: null };
     
-    const shamirService = new ShamirSecretSharingService(signer, chainId);
-    const registryService = new DistributedSSSRegistryService(signer, chainId);
+    const shamirService = new ProductionShamirService(signer, chainId);
+    const registryService = new SecureShareRegistryService(signer, chainId);
     
     return { shamirService, registryService };
   };
@@ -47,8 +47,8 @@ const KeyRecovery = () => {
       .filter(index => index.trim() !== '')
       .map(index => parseInt(index.trim()));
     
-    if (validIndices.length < 3) {
-      setError("At least 3 valid share indices are required");
+    if (validIndices.length < THRESHOLD) {
+      setError(`At least ${THRESHOLD} valid share indices are required`);
       return;
     }
     
@@ -57,7 +57,7 @@ const KeyRecovery = () => {
     setError('');
     
     try {
-      const { shamirService, registryService } = initServices();
+      const { registryService } = initServices();
       const userAddress = await signer.getAddress();
       
       // Step 1: Retrieve encrypted shares from the registry
@@ -65,23 +65,37 @@ const KeyRecovery = () => {
       
       const encryptedShares = await registryService.getShares(userAddress, validIndices);
       
-      if (encryptedShares.length < 3) {
-        throw new Error(`Could only retrieve ${encryptedShares.length} shares, need at least 3`);
+      if (encryptedShares.length < THRESHOLD) {
+        throw new Error(`Could only retrieve ${encryptedShares.length} shares, need at least ${THRESHOLD}`);
       }
       
-      // Step 2: Need to get the user's public key to verify the private key
-      setRecoveryProgress('Retrieving public key...');
+      // Step 2: Decrypt shares using recovery mechanism
+      // This depends on your recovery approach (social recovery, hardware device, etc.)
+      setRecoveryProgress('Decrypting shares...');
       
-      // At this point we don't have the private key to decrypt the shares
-      // In a real implementation, you might have a recovery method such as:
-      // 1. A hardware wallet or backup seed phrase
-      // 2. A social recovery mechanism where friends help decrypt
-      // 3. A multi-sig approach for enterprise recovery
+      // For demo purposes, we'll assume you have a way to decrypt
+      // In a real implementation, this would use the recovery mechanism
+      const decryptedShares = [];
       
-      // For demo purposes, we'll simulate recovery with Shamir directly
+      for (const encryptedShare of encryptedShares) {
+        // Parse the encrypted data
+        const encryptedData = EccService.parseFromContract(encryptedShare);
+        
+        // Decrypt share using recovery key
+        // NOTE: This part depends on your recovery mechanism
+        const decryptedShare = await EccService.decrypt(recoveryKey, encryptedData);
+        
+        // For demo purposes only
+        // const decryptedShare = "demo_decrypted_share"; // Replace with actual decryption
+        
+        decryptedShares.push(decryptedShare);
+      }
+      
+      // Step 3: Combine shares to reconstruct the secret
       setRecoveryProgress('Reconstructing private key from shares...');
       
-      const privateKeyHex = await shamirService.reconstructSecret(validIndices);
+      // Combine shares using the secrets.js library
+      const privateKeyHex = secrets.combine(decryptedShares);
       
       // Verify the key by deriving the public key
       const recoveredKeyPair = EccService.importFromPrivateKey(privateKeyHex);

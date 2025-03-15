@@ -14,13 +14,15 @@
     "@noble/curves": "^1.8.1",
     "@noble/hashes": "^1.7.1",
     "@noble/secp256k1": "^2.2.3",
+    "@openzeppelin/contracts": "^5.0.0",
     "@scure/bip32": "^1.6.2",
     "@scure/bip39": "^1.5.4",
     "buffer": "^6.0.3",
     "ethereum-cryptography": "^3.1.0",
     "ethers": "^6.13.5",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "secrets.js-grempe": "^2.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.21.0",

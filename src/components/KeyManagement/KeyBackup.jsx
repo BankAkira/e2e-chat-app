@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
 import { useKeyPair } from '../../context/KeyPairContext';
 import { useWallet } from '../../context/WalletContext';
-import ShamirSecretSharingService from '../../services/contracts/ShamirSecretSharingService';
-import DistributedSSSRegistryService from '../../services/contracts/DistributedSSSRegistryService';
+import ProductionShamirService from '../../services/contracts/ProductionShamirService';
+import SecureShareRegistryService from '../../services/contracts/SecureShareRegistryService';
 import EccService from '../../services/cryptography/EccService';
 
 const KeyBackup = () => {
@@ -28,8 +28,8 @@ const KeyBackup = () => {
     }
     
     try {
-      const shamirService = new ShamirSecretSharingService(signer, chainId);
-      const registryService = new DistributedSSSRegistryService(signer, chainId);
+      const shamirService = new ProductionShamirService(signer, chainId);
+      const registryService = new SecureShareRegistryService(signer, chainId);
       
       return { shamirService, registryService };
     } catch (initError) {
@@ -46,7 +46,7 @@ const KeyBackup = () => {
         try {
           const { registryService } = initServices();
           const address = await signer.getAddress();
-        //   const hasShares = await registryService.hasShares(address);
+          const hasShares = await registryService.hasShares(address);
           setIsBackedUp(hasShares);
         } catch (error) {
           console.error("Error checking backup status:", error);
@@ -80,42 +80,30 @@ const KeyBackup = () => {
     
     try {
       // Initialize services with error handling
-      const { shamirService, registryService } = initServices();
+      const { registryService } = initServices();
       
       // Validate services are initialized
-      if (!shamirService || !registryService) {
+      if (!registryService) {
         throw new Error('Failed to initialize backup services');
       }
       
-      // Step 1: Generate Shamir shares for the private key
-      setBackupProgress('Generating Shamir secret shares...');
+      // Step 1: Generate Shamir shares LOCALLY, not on the blockchain
+      setBackupProgress('Generating Shamir secret shares locally...');
       
-      // Convert private key to bytes format
-      const privateKeyBytes = keyPair.privateKey;
+      // Convert private key to hex without 0x prefix (if needed)
+      const privateKeyHex = keyPair.privateKey.startsWith('0x') 
+        ? keyPair.privateKey.substring(2) 
+        : keyPair.privateKey;
       
-      console.log('Attempting to split secret with services:', {
-        shamirService: !!shamirService,
-        registryService: !!registryService,
-        privateKeyBytes: privateKeyBytes.substring(0, 10) + '...'
-      });
+      // Split the secret locally using the secrets.js library
+      // NUM_SHARES is total number of shares, THRESHOLD is minimum needed to reconstruct
+      const shares = secrets.share(privateKeyHex, NUM_SHARES, THRESHOLD);
       
-      // Split the secret using the Shamir contract
-      const shareIndices = await shamirService.splitSecretWithHybridRandomness(
-        privateKeyBytes,
-        NUM_SHARES,
-        THRESHOLD
-      );
+      setShareData(shares.map((share, index) => ({ 
+        x: index + 1, // Simple index as x-coordinate
+        y: share      // The actual share value
+      })));
       
-      setBackupProgress('Retrieving generated shares...');
-      
-      // Get all shares from the contract
-      const shares = [];
-      for (let i = 1; i <= NUM_SHARES; i++) {
-        const share = await shamirService.getShare(i);
-        shares.push(share);
-      }
-      
-      setShareData(shares);
       setSharesGenerated(true);
       
       // Step 2: Encrypt shares with public key
@@ -124,7 +112,7 @@ const KeyBackup = () => {
       const encryptedShares = await Promise.all(
         shares.map(async (share) => {
           // Convert share data to string then encrypt it
-          const shareStr = JSON.stringify(share);
+          const shareStr = share; // Share is already a string
           const encrypted = await EccService.encrypt(keyPair.publicKey, shareStr);
           
           // Format for contract

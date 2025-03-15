@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useWallet } from '../../context/WalletContext';
 import { useKeyPair } from '../../context/KeyPairContext';
-import DistributedSSSRegistryService from '../../services/contracts/DistributedSSSRegistryService';
+import SecureShareRegistryService from '../../services/contracts/SecureShareRegistryService';
 
 const RecoveryAddresses = () => {
   const { signer, chainId } = useWallet();
@@ -17,7 +17,7 @@ const RecoveryAddresses = () => {
   // Initialize service
   const getRegistryService = () => {
     if (!signer) return null;
-    return new DistributedSSSRegistryService(signer, chainId);
+    return new SecureShareRegistryService(signer, chainId);
   };
   
   // Load existing recovery addresses

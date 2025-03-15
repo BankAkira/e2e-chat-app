@@ -9,6 +9,7 @@ import WalletConnector from './Wallet/WalletConnector';
 import KeyGenerator from './KeyManagement/KeyGenerator';
 import KeyBackup from './KeyManagement/KeyBackup';
 import KeyRecovery from './KeyManagement/KeyRecovery';
+import SecureOneClickBackup from './KeyManagement/SecureOneClickBackup';
 import RecoveryAddresses from './KeyManagement/RecoveryAddresses';
 
 // Chat components
@@ -38,7 +39,7 @@ const App = () => {
               <section className="mb-8">
                 <h2 className="text-xl font-bold mb-4 border-b pb-2">Key Management</h2>
                 <KeyGenerator />
-                <KeyBackup />
+                <SecureOneClickBackup />
                 <KeyRecovery />
                 <RecoveryAddresses />
               </section>
